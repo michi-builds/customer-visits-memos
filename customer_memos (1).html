@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Customer Visit Memo</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', -apple-system, sans-serif; background: #f5f5f3; min-height: 100vh; color: #1a1a1a; }
+  .app { max-width: 480px; margin: 0 auto; padding: 1rem; }
+  .header { display: flex; align-items: center; justify-content: space-between; padding: 1rem 0 1.5rem; }
+  .header h1 { font-size: 18px; font-weight: 600; letter-spacing: -0.3px; }
+  .user-badge { display: flex; align-items: center; gap: 8px; }
+  .avatar { width: 28px; height: 28px; border-radius: 50%; background: #dbeafe; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; color: #1d4ed8; }
+  .logout-btn { font-size: 12px; color: #888; border: none; background: none; cursor: pointer; font-family: inherit; padding: 4px 8px; border-radius: 6px; }
+  .logout-btn:hover { background: #f0f0f0; }
+
+  /* Auth */
+  .auth-card { background: #fff; border-radius: 12px; border: 0.5px solid #e0e0e0; padding: 2rem 1.5rem; text-align: center; }
+  .auth-icon { font-size: 40px; margin-bottom: 1rem; }
+  .auth-card p { font-size: 14px; color: #666; margin-bottom: 1.5rem; line-height: 1.6; }
+  .btn-google { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; padding: 12px; background: #fff; border: 1px solid #dadce0; border-radius: 8px; font-size: 15px; font-weight: 500; cursor: pointer; color: #1a1a1a; transition: background 0.15s; font-family: inherit; }
+  .btn-google:hover { background: #f8f8f8; }
+  .note { font-size: 12px; color: #aaa; margin-top: 0.75rem; text-align: center; }
+
+  /* Tabs */
+  .tabs { display: flex; gap: 4px; background: #ebebeb; border-radius: 8px; padding: 3px; margin-bottom: 1.25rem; }
+  .tab { flex: 1; padding: 8px; border: none; background: transparent; border-radius: 6px; font-size: 13px; font-weight: 500; cursor: pointer; color: #888; transition: all 0.15s; font-family: inherit; }
+  .tab.active { background: #fff; color: #1a1a1a; border: 0.5px solid #e0e0e0; }
+
+  /* Card & Fields */
+  .card { background: #fff; border-radius: 12px; border: 0.5px solid #e0e0e0; padding: 1.25rem; margin-bottom: 1rem; }
+  .field { margin-bottom: 1rem; }
+  .field label { display: block; font-size: 11px; font-weight: 600; color: #888; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.06em; }
+  .field input, .field textarea { width: 100%; padding: 10px 12px; border: 1px solid #e0e0e0; border-radius: 8px; font-size: 15px; font-family: inherit; background: #fff; color: #1a1a1a; outline: none; transition: border-color 0.15s; }
+  .field input:focus, .field textarea:focus { border-color: #aaa; }
+  .field textarea { resize: none; line-height: 1.6; min-height: 120px; }
+
+  /* Customer name with dropdown */
+  .name-wrap { position: relative; }
+  .name-wrap input { padding-right: 36px; }
+  .name-dropdown-btn { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: #aaa; font-size: 16px; padding: 4px; }
+  .name-dropdown { position: absolute; top: calc(100% + 4px); left: 0; right: 0; background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.08); z-index: 100; max-height: 200px; overflow-y: auto; display: none; }
+  .name-dropdown.open { display: block; }
+  .name-option { padding: 10px 14px; font-size: 14px; cursor: pointer; border-bottom: 0.5px solid #f0f0f0; transition: background 0.1s; }
+  .name-option:last-child { border-bottom: none; }
+  .name-option:hover, .name-option.highlighted { background: #f5f5f5; }
+  .name-option-new { color: #1d4ed8; font-style: italic; }
+  .name-empty { padding: 10px 14px; font-size: 13px; color: #aaa; }
+
+  /* Voice */
+  .voice-row { display: flex; gap: 8px; align-items: flex-start; }
+  .voice-row textarea { flex: 1; }
+  .btn-voice { width: 44px; height: 44px; border-radius: 50%; border: 1px solid #e0e0e0; background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 18px; transition: all 0.15s; }
+  .btn-voice:hover { background: #f5f5f5; }
+  .btn-voice.recording { background: #fef2f2; border-color: #fca5a5; animation: pulse 1s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.08)} }
+
+  /* Tags */
+  .tags-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .tag { padding: 4px 10px; border-radius: 99px; font-size: 12px; cursor: pointer; border: 1px solid #e0e0e0; background: #f5f5f5; color: #666; transition: all 0.15s; }
+  .tag.selected { background: #dbeafe; border-color: #93c5fd; color: #1d4ed8; }
+
+  /* Save */
+  .btn-save { width: 100%; padding: 14px; background: #1a1a1a; color: #fff; border: none; border-radius: 8px; font-size: 15px; font-weight: 500; cursor: pointer; transition: opacity 0.15s; font-family: inherit; margin-top: 0.5rem; }
+  .btn-save:hover { opacity: 0.85; }
+  .btn-save:disabled { opacity: 0.4; cursor: not-allowed; }
+  .save-msg { text-align: center; font-size: 13px; color: #888; margin-top: 8px; min-height: 20px; }
+  .save-msg.success { color: #0F6E56; }
+  .save-msg.error { color: #b91c1c; }
+
+  /* Previous memo */
+  .prev-memo { background: #f8f8f8; border-radius: 8px; border: 1px solid #e8e8e8; padding: 0.875rem 1rem; margin-bottom: 1rem; }
+  .prev-memo-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+  .prev-memo-label { font-size: 11px; font-weight: 600; color: #888; text-transform: uppercase; letter-spacing: 0.06em; }
+  .prev-memo-date { font-size: 11px; color: #aaa; }
+  .prev-memo-text { font-size: 13px; color: #555; line-height: 1.6; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .prev-memo-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+  .prev-memo-tag { padding: 2px 7px; border-radius: 99px; font-size: 11px; background: #dbeafe; color: #1d4ed8; }
+
+  /* List */
+  .list-subtabs { display: flex; gap: 4px; margin-bottom: 1rem; }
+  .subtab { padding: 6px 14px; border-radius: 99px; font-size: 13px; font-weight: 500; cursor: pointer; border: 1px solid #e0e0e0; background: #fff; color: #888; transition: all 0.15s; font-family: inherit; }
+  .subtab.active { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
+  .search-wrap { position: relative; margin-bottom: 1rem; }
+  .search-wrap input { width: 100%; padding: 10px 12px 10px 36px; border: 1px solid #e0e0e0; border-radius: 8px; font-size: 14px; background: #fff; outline: none; font-family: inherit; color: #1a1a1a; }
+  .search-icon { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: #aaa; font-size: 14px; pointer-events: none; }
+
+  .memo-item { background: #fff; border-radius: 12px; border: 0.5px solid #e0e0e0; padding: 1rem 1.25rem; margin-bottom: 0.75rem; cursor: pointer; transition: border-color 0.15s; }
+  .memo-item:hover { border-color: #bbb; }
+  .memo-meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+  .memo-name { font-size: 15px; font-weight: 500; }
+  .memo-date { font-size: 12px; color: #888; }
+  .memo-preview { font-size: 13px; color: #666; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .memo-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+  .memo-tag { padding: 2px 8px; border-radius: 99px; font-size: 11px; background: #dbeafe; color: #1d4ed8; }
+
+  .customer-item { background: #fff; border-radius: 12px; border: 0.5px solid #e0e0e0; padding: 1rem 1.25rem; margin-bottom: 0.75rem; cursor: pointer; transition: border-color 0.15s; display: flex; align-items: center; gap: 12px; }
+  .customer-item:hover { border-color: #bbb; }
+  .customer-avatar { width: 40px; height: 40px; border-radius: 50%; background: #dbeafe; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 500; color: #1d4ed8; flex-shrink: 0; }
+  .customer-info { flex: 1; min-width: 0; }
+  .customer-name { font-size: 15px; font-weight: 500; }
+  .customer-meta { font-size: 12px; color: #888; margin-top: 2px; }
+  .customer-arrow { color: #ccc; font-size: 18px; }
+
+  /* Customer detail */
+  .customer-profile { background: #fff; border-radius: 12px; border: 0.5px solid #e0e0e0; padding: 1.25rem; margin-bottom: 1rem; }
+  .profile-header { display: flex; align-items: center; gap: 12px; margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 0.5px solid #e8e8e8; }
+  .profile-avatar { width: 48px; height: 48px; border-radius: 50%; background: #dbeafe; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 500; color: #1d4ed8; }
+  .profile-name { font-size: 18px; font-weight: 500; }
+  .profile-stats { font-size: 13px; color: #888; margin-top: 2px; }
+  .timeline-item { position: relative; padding-left: 20px; padding-bottom: 1.25rem; border-left: 1.5px solid #e8e8e8; margin-left: 6px; }
+  .timeline-item:last-child { border-left: 1.5px solid transparent; padding-bottom: 0; }
+  .timeline-dot { position: absolute; left: -5px; top: 4px; width: 8px; height: 8px; border-radius: 50%; background: #93c5fd; border: 1.5px solid #fff; }
+  .timeline-date { font-size: 12px; color: #888; margin-bottom: 4px; }
+  .timeline-text { font-size: 14px; color: #1a1a1a; line-height: 1.6; white-space: pre-wrap; }
+  .timeline-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+
+  .empty-state { text-align: center; padding: 3rem 1rem; color: #aaa; font-size: 14px; }
+  .back-btn { display: flex; align-items: center; gap: 6px; font-size: 14px; color: #888; cursor: pointer; margin-bottom: 1rem; border: none; background: none; padding: 0; font-family: inherit; }
+  .back-btn:hover { color: #1a1a1a; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <h1>Customer Visit Memo</h1>
+    <div id="userBadge" style="display:none" class="user-badge">
+      <div class="avatar" id="avatarEl">?</div>
+      <span id="userNameEl" style="font-size:13px;color:#666"></span>
+      <button class="logout-btn" onclick="logout()">Sign out</button>
+    </div>
+  </div>
+
+  <div id="authView">
+    <div class="auth-card">
+      <div class="auth-icon">📋</div>
+      <p>Sign in with Google to save<br>customer memos to your Google Drive.</p>
+      <button class="btn-google" onclick="startAuth()">
+        <svg width="18" height="18" viewBox="0 0 24 24">
+          <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+          <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+          <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+          <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+        </svg>
+        Sign in with Google
+      </button>
+      <p class="note">Data is saved to your Google Drive</p>
+    </div>
+  </div>
+
+  <div id="mainView" style="display:none">
+    <div class="tabs">
+      <button class="tab active" id="tabInput" onclick="switchTab('input')">New Memo</button>
+      <button class="tab" id="tabList" onclick="switchTab('list')">Customers</button>
+    </div>
+
+    <!-- Input view -->
+    <div id="inputView">
+      <div class="card">
+        <div class="field">
+          <label>Customer Name</label>
+          <div class="name-wrap" id="nameWrap">
+            <input type="text" id="customerName" placeholder="Type or select a customer…" autocomplete="off"
+              oninput="onNameInput()" onfocus="openDropdown()" onkeydown="onNameKeydown(event)">
+            <button class="name-dropdown-btn" onclick="toggleDropdown()" tabindex="-1">▾</button>
+            <div class="name-dropdown" id="nameDropdown"></div>
+          </div>
+        </div>
+
+        <div id="prevMemoArea" style="display:none" class="prev-memo">
+          <div class="prev-memo-header">
+            <span class="prev-memo-label">Last Visit</span>
+            <span class="prev-memo-date" id="prevMemoDate"></span>
+          </div>
+          <div class="prev-memo-text" id="prevMemoText"></div>
+          <div class="prev-memo-tags" id="prevMemoTags"></div>
+        </div>
+
+        <div class="field">
+          <label>Visit Date</label>
+          <input type="date" id="visitDate">
+        </div>
+        <div class="field">
+          <label>Notes (voice input supported)</label>
+          <div class="voice-row">
+            <textarea id="memoText" placeholder="Conversation, preferences, drinks, food…"></textarea>
+            <button class="btn-voice" id="voiceBtn" onclick="toggleVoice()" title="Voice input">🎤</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>Tags</label>
+          <div class="tags-row" id="tagSelector">
+            <span class="tag" onclick="toggleTag(this)">Preference</span>
+            <span class="tag" onclick="toggleTag(this)">Drinks</span>
+            <span class="tag" onclick="toggleTag(this)">Food</span>
+            <span class="tag" onclick="toggleTag(this)">Conversation</span>
+            <span class="tag" onclick="toggleTag(this)">Allergy</span>
+            <span class="tag" onclick="toggleTag(this)">Anniversary</span>
+            <span class="tag" onclick="toggleTag(this)">VIP</span>
+          </div>
+        </div>
+        <button class="btn-save" id="saveBtn" onclick="saveMemo()">Save to Google Drive</button>
+        <div class="save-msg" id="saveMsg"></div>
+      </div>
+    </div>
+
+    <!-- List view -->
+    <div id="listView" style="display:none">
+      <div class="list-subtabs">
+        <button class="subtab active" id="subtabCustomers" onclick="switchSubtab('customers')">By Customer</button>
+        <button class="subtab" id="subtabAll" onclick="switchSubtab('all')">By Date</button>
+      </div>
+      <div class="search-wrap">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="searchInput" placeholder="Search customers or notes…" oninput="renderList()">
+      </div>
+      <div id="memoList"></div>
+    </div>
+
+    <!-- Customer detail view -->
+    <div id="customerDetailView" style="display:none">
+      <button class="back-btn" onclick="backToList()">← Back to customers</button>
+      <div id="customerDetailContent"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const CLIENT_ID = '15537871294-g5ohdi9kf1vbtro6haqnadjuiuvi2mhv.apps.googleusercontent.com';
+const SCOPES = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.profile';
+const FILE_NAME = 'customer_memos.json';
+const REDIRECT = location.href.split('?')[0].split('#')[0];
+
+let token = null, fileId = null, memos = [], recognition = null, isRecording = false;
+let currentSubtab = 'customers', dropdownOpen = false, highlightedIdx = -1;
+
+// ── Auth ──
+function startAuth() {
+  const p = new URLSearchParams({ client_id: CLIENT_ID, redirect_uri: REDIRECT, response_type: 'token', scope: SCOPES, prompt: 'select_account' });
+  location.href = 'https://accounts.google.com/o/oauth2/v2/auth?' + p;
+}
+function logout() {
+  sessionStorage.removeItem('gtoken'); token = null; fileId = null; memos = [];
+  document.getElementById('mainView').style.display = 'none';
+  document.getElementById('authView').style.display = '';
+  document.getElementById('userBadge').style.display = 'none';
+}
+async function init() {
+  const hash = new URLSearchParams(location.hash.slice(1));
+  const t = hash.get('access_token');
+  if (t) { token = t; sessionStorage.setItem('gtoken', t); history.replaceState(null, '', location.pathname); }
+  else { const s = sessionStorage.getItem('gtoken'); if (s) token = s; }
+  if (!token) return;
+  document.getElementById('authView').style.display = 'none';
+  document.getElementById('mainView').style.display = '';
+  document.getElementById('visitDate').value = new Date().toISOString().split('T')[0];
+  try {
+    const r = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', { headers: { Authorization: 'Bearer ' + token } });
+    const u = await r.json();
+    if (u.error) { logout(); return; }
+    const name = u.name || u.email || 'U';
+    document.getElementById('userNameEl').textContent = name.split(' ')[0];
+    document.getElementById('avatarEl').textContent = name[0].toUpperCase();
+    document.getElementById('userBadge').style.display = 'flex';
+  } catch(e) {}
+  await loadFile();
+  document.addEventListener('click', e => { if (!document.getElementById('nameWrap').contains(e.target)) closeDropdown(); });
+}
+
+// ── Drive ──
+async function gfetch(url, opts = {}) {
+  opts.headers = { ...(opts.headers || {}), Authorization: 'Bearer ' + token };
+  const r = await fetch(url, opts);
+  if (r.status === 401) { logout(); throw new Error('auth'); }
+  return r;
+}
+async function loadFile() {
+  try {
+    const r = await gfetch('https://www.googleapis.com/drive/v3/files?q=name%3D%22' + FILE_NAME + '%22+and+trashed%3Dfalse&spaces=drive');
+    const d = await r.json();
+    if (d.files && d.files.length) {
+      fileId = d.files[0].id;
+      const c = await gfetch('https://www.googleapis.com/drive/v3/files/' + fileId + '?alt=media');
+      memos = await c.json();
+    } else { memos = []; }
+  } catch(e) { memos = []; }
+}
+async function saveFile() {
+  const body = JSON.stringify(memos);
+  const meta = JSON.stringify({ name: FILE_NAME, mimeType: 'application/json' });
+  const boundary = 'memoboundary';
+  const mp = `--${boundary}\r\nContent-Type: application/json\r\n\r\n${meta}\r\n--${boundary}\r\nContent-Type: application/json\r\n\r\n${body}\r\n--${boundary}--`;
+  if (fileId) {
+    await gfetch('https://www.googleapis.com/upload/drive/v3/files/' + fileId + '?uploadType=multipart', { method: 'PATCH', headers: { 'Content-Type': 'multipart/related; boundary=' + boundary }, body: mp });
+  } else {
+    const r = await gfetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', { method: 'POST', headers: { 'Content-Type': 'multipart/related; boundary=' + boundary }, body: mp });
+    fileId = (await r.json()).id;
+  }
+}
+
+// ── Customer name dropdown ──
+function getCustomerNames() {
+  return [...new Set(memos.map(m => m.customerName))].sort((a, b) => a.localeCompare(b, 'ja'));
+}
+function openDropdown() { dropdownOpen = true; renderDropdown(); }
+function closeDropdown() { dropdownOpen = false; highlightedIdx = -1; document.getElementById('nameDropdown').classList.remove('open'); }
+function toggleDropdown() { if (dropdownOpen) closeDropdown(); else { document.getElementById('customerName').focus(); openDropdown(); } }
+
+function renderDropdown() {
+  const q = document.getElementById('customerName').value.trim().toLowerCase();
+  const all = getCustomerNames();
+  const filtered = q ? all.filter(n => n.toLowerCase().includes(q)) : all;
+  const dd = document.getElementById('nameDropdown');
+  if (!dropdownOpen) { dd.classList.remove('open'); return; }
+  let html = '';
+  if (filtered.length === 0 && q) {
+    html = `<div class="name-option name-option-new" onclick="selectName('${esc(q)}')">+ Add "${esc(q)}" as new customer</div>`;
+  } else {
+    html = filtered.map((n, i) => `<div class="name-option${i === highlightedIdx ? ' highlighted' : ''}" onclick="selectName('${esc(n).replace(/'/g,"\\'")}')"> ${esc(n)}</div>`).join('');
+    if (q && !filtered.find(n => n.toLowerCase() === q)) {
+      html += `<div class="name-option name-option-new" onclick="selectName('${esc(q)}')">+ Add "${esc(q)}" as new customer</div>`;
+    }
+  }
+  if (!html) html = '<div class="name-empty">No customers yet</div>';
+  dd.innerHTML = html;
+  dd.classList.add('open');
+}
+
+function selectName(name) {
+  document.getElementById('customerName').value = name;
+  closeDropdown();
+  showPrevMemo(name);
+}
+
+function onNameInput() {
+  highlightedIdx = -1;
+  openDropdown();
+  showPrevMemo(document.getElementById('customerName').value.trim());
+}
+
+function onNameKeydown(e) {
+  const dd = document.getElementById('nameDropdown');
+  const items = dd.querySelectorAll('.name-option');
+  if (e.key === 'ArrowDown') { e.preventDefault(); highlightedIdx = Math.min(highlightedIdx + 1, items.length - 1); renderDropdown(); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); highlightedIdx = Math.max(highlightedIdx - 1, 0); renderDropdown(); }
+  else if (e.key === 'Enter' && highlightedIdx >= 0) { e.preventDefault(); items[highlightedIdx].click(); }
+  else if (e.key === 'Escape') closeDropdown();
+}
+
+function showPrevMemo(name) {
+  const area = document.getElementById('prevMemoArea');
+  if (!name) { area.style.display = 'none'; return; }
+  const cms = memos.filter(m => m.customerName === name).sort((a, b) => (b.visitDate || '').localeCompare(a.visitDate || ''));
+  if (!cms.length) { area.style.display = 'none'; return; }
+  const last = cms[0];
+  area.style.display = '';
+  document.getElementById('prevMemoDate').textContent = last.visitDate || '';
+  document.getElementById('prevMemoText').textContent = last.memo;
+  document.getElementById('prevMemoTags').innerHTML = (last.tags || []).map(t => `<span class="prev-memo-tag">${esc(t)}</span>`).join('');
+}
+
+// ── Save ──
+async function saveMemo() {
+  const name = document.getElementById('customerName').value.trim();
+  const date = document.getElementById('visitDate').value;
+  const text = document.getElementById('memoText').value.trim();
+  if (!name || !text) { setMsg('Please enter customer name and notes.', 'error'); return; }
+  const tags = [...document.querySelectorAll('#tagSelector .tag.selected')].map(t => t.textContent);
+  const memo = { id: Date.now(), customerName: name, visitDate: date, memo: text, tags, createdAt: new Date().toISOString() };
+  memos.unshift(memo);
+  document.getElementById('saveBtn').disabled = true;
+  setMsg('Saving…', '');
+  try {
+    await saveFile();
+    setMsg('✓ Saved', 'success');
+    document.getElementById('memoText').value = '';
+    document.querySelectorAll('#tagSelector .tag').forEach(t => t.classList.remove('selected'));
+    showPrevMemo(name);
+  } catch(e) { memos.shift(); setMsg('Failed to save. Please try again.', 'error'); }
+  document.getElementById('saveBtn').disabled = false;
+}
+function setMsg(msg, type) { const el = document.getElementById('saveMsg'); el.textContent = msg; el.className = 'save-msg ' + type; }
+function toggleTag(el) { el.classList.toggle('selected'); }
+
+// ── Tabs ──
+function switchTab(tab) {
+  document.getElementById('tabInput').classList.toggle('active', tab === 'input');
+  document.getElementById('tabList').classList.toggle('active', tab === 'list');
+  document.getElementById('inputView').style.display = tab === 'input' ? '' : 'none';
+  document.getElementById('customerDetailView').style.display = 'none';
+  if (tab === 'list') { document.getElementById('listView').style.display = ''; renderList(); }
+  else document.getElementById('listView').style.display = 'none';
+}
+function switchSubtab(sub) {
+  currentSubtab = sub;
+  document.getElementById('subtabCustomers').classList.toggle('active', sub === 'customers');
+  document.getElementById('subtabAll').classList.toggle('active', sub === 'all');
+  renderList();
+}
+
+// ── List ──
+function renderList() {
+  const q = document.getElementById('searchInput').value.toLowerCase();
+  const el = document.getElementById('memoList');
+  if (currentSubtab === 'customers') {
+    const filtered = memos.filter(m => !q || m.customerName.toLowerCase().includes(q) || m.memo.toLowerCase().includes(q));
+    const map = {};
+    filtered.forEach(m => { if (!map[m.customerName]) map[m.customerName] = []; map[m.customerName].push(m); });
+    const customers = Object.entries(map).sort((a, b) => {
+      const aL = a[1].reduce((mx, m) => m.visitDate > mx ? m.visitDate : mx, '');
+      const bL = b[1].reduce((mx, m) => m.visitDate > mx ? m.visitDate : mx, '');
+      return bL.localeCompare(aL);
+    });
+    if (!customers.length) { el.innerHTML = '<div class="empty-state">No memos yet</div>'; return; }
+    el.innerHTML = customers.map(([name, cms]) => {
+      const last = cms.reduce((mx, m) => m.visitDate > mx ? m.visitDate : mx, '');
+      return `<div class="customer-item" onclick="showCustomerDetail('${esc(name).replace(/'/g,"\\'")}')">
+        <div class="customer-avatar">${esc(name[0].toUpperCase())}</div>
+        <div class="customer-info">
+          <div class="customer-name">${esc(name)}</div>
+          <div class="customer-meta">${cms.length} visit${cms.length > 1 ? 's' : ''}　Last: ${last || 'unknown'}</div>
+        </div>
+        <span class="customer-arrow">›</span>
+      </div>`;
+    }).join('');
+  } else {
+    const filtered = memos.filter(m => !q || m.customerName.toLowerCase().includes(q) || m.memo.toLowerCase().includes(q)).sort((a, b) => (b.visitDate || '').localeCompare(a.visitDate || ''));
+    if (!filtered.length) { el.innerHTML = '<div class="empty-state">No memos yet</div>'; return; }
+    el.innerHTML = filtered.map(m => `
+      <div class="memo-item" onclick="showCustomerDetail('${esc(m.customerName).replace(/'/g,"\\'")}')">
+        <div class="memo-meta"><span class="memo-name">${esc(m.customerName)}</span><span class="memo-date">${m.visitDate || ''}</span></div>
+        <div class="memo-preview">${esc(m.memo)}</div>
+        ${m.tags && m.tags.length ? '<div class="memo-tags">' + m.tags.map(t => `<span class="memo-tag">${esc(t)}</span>`).join('') + '</div>' : ''}
+      </div>`).join('');
+  }
+}
+
+function showCustomerDetail(name) {
+  const cms = memos.filter(m => m.customerName === name).sort((a, b) => (b.visitDate || '').localeCompare(a.visitDate || ''));
+  document.getElementById('listView').style.display = 'none';
+  document.getElementById('customerDetailView').style.display = '';
+  const allTags = [...new Set(cms.flatMap(m => m.tags || []))];
+  const timeline = cms.map(m => `
+    <div class="timeline-item">
+      <div class="timeline-dot"></div>
+      <div class="timeline-date">${m.visitDate || 'Date unknown'}</div>
+      <div class="timeline-text">${esc(m.memo)}</div>
+      ${m.tags && m.tags.length ? '<div class="timeline-tags">' + m.tags.map(t => `<span class="memo-tag">${esc(t)}</span>`).join('') + '</div>' : ''}
+    </div>`).join('');
+  document.getElementById('customerDetailContent').innerHTML = `
+    <div class="customer-profile">
+      <div class="profile-header">
+        <div class="profile-avatar">${esc(name[0].toUpperCase())}</div>
+        <div>
+          <div class="profile-name">${esc(name)}</div>
+          <div class="profile-stats">${cms.length} visit${cms.length > 1 ? 's' : ''}　Last: ${cms[0].visitDate || 'unknown'}</div>
+          ${allTags.length ? '<div class="memo-tags" style="margin-top:6px">' + allTags.map(t => `<span class="memo-tag">${esc(t)}</span>`).join('') + '</div>' : ''}
+        </div>
+      </div>
+      <div class="timeline">${timeline}</div>
+    </div>`;
+}
+
+function backToList() {
+  document.getElementById('customerDetailView').style.display = 'none';
+  document.getElementById('listView').style.display = '';
+}
+
+function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+// ── Voice ──
+function toggleVoice() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { alert('Voice input is not supported in this browser.\nPlease use the microphone button on your iPhone keyboard.'); return; }
+  if (isRecording) { recognition.stop(); return; }
+  recognition = new SR();
+  recognition.lang = 'ja-JP'; recognition.continuous = true; recognition.interimResults = false;
+  recognition.onstart = () => { isRecording = true; document.getElementById('voiceBtn').classList.add('recording'); };
+  recognition.onend = () => { isRecording = false; document.getElementById('voiceBtn').classList.remove('recording'); };
+  recognition.onresult = e => {
+    const t = [...e.results].map(r => r[0].transcript).join('');
+    const ta = document.getElementById('memoText');
+    ta.value += (ta.value ? '\n' : '') + t;
+  };
+  recognition.start();
+}
+
+init();
+</script>
+</body>
+</html>
